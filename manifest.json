@@ -1,0 +1,9 @@
+{
+  "name": "Meta 100 Mil 🇧🇷",
+  "short_name": "Meta 100 Mil",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#1565c0",
+  "lang": "pt-BR"
+}
