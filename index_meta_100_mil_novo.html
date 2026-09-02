@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1565c0">
+<link rel="manifest" href="manifest.json">
+<title>Meta de R$ 100 mil</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f2f5f9;color:#17212b}
+header{background:#1565c0;color:white;padding:22px 16px;text-align:center}
+header h1{margin:0 0 6px;font-size:25px}
+header p{margin:0;opacity:.92}
+.container{max-width:700px;margin:auto;padding:14px}
+.card{background:white;border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 2px 9px #00000012}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:#f5f8fc;border-radius:12px;padding:13px;text-align:center}
+.stat small{display:block;color:#667;font-size:12px;margin-bottom:5px}
+.stat strong{font-size:20px}
+.progress{height:16px;background:#e2e7ed;border-radius:20px;overflow:hidden;margin:10px 0}
+.bar{height:100%;width:0;background:#1565c0;transition:.3s}
+button{width:100%;border:0;border-radius:12px;padding:16px;font-size:17px;font-weight:bold;cursor:pointer}
+#depositBtn{background:#1565c0;color:white;margin-top:4px}
+#depositBtn:disabled{background:#8aaed5}
+#reminderBtn{background:#eef4fb;color:#1565c0;margin-top:10px}
+.message{text-align:center;font-weight:bold;margin-top:10px;min-height:20px}
+h2{font-size:19px;margin:0 0 12px}
+.history{max-height:430px;overflow:auto}
+.day{display:flex;align-items:center;gap:10px;padding:11px 4px;border-bottom:1px solid #edf0f3}
+.day:last-child{border-bottom:0}
+.day input{width:22px;height:22px;accent-color:#1565c0}
+.day-info{flex:1}
+.day-title{font-weight:bold}
+.day-date{font-size:13px;color:#667;margin-top:3px}
+.day-value{font-weight:bold;white-space:nowrap}
+.summary{line-height:1.6}
+.notice{font-size:12px;color:#667;margin-top:10px}
+</style>
+</head>
+<body>
+<header>
+  <h1>💰 Meta de R$ 100 mil</h1>
+  <p>3 anos • acompanhamento diário</p>
+</header>
+
+<div class="container">
+  <div class="card">
+    <div class="stats">
+      <div class="stat"><small>Meta diária</small><strong id="daily">R$ 75,75</strong></div>
+      <div class="stat"><small>Total depositado</small><strong id="total">R$ 0,00</strong></div>
+      <div class="stat"><small>Depósitos feitos</small><strong id="count">0</strong></div>
+      <div class="stat"><small>Progresso</small><strong id="percent">0,00%</strong></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div><strong>Progresso da meta</strong>
+    <div class="progress"><div class="bar" id="bar"></div></div>
+    <div class="summary">
+      <div>Saldo com juros: <strong id="withInterest">R$ 0,00</strong></div>
+      <div>Falta para R$ 100 mil: <strong id="remaining">R$ 100.000,00</strong></div>
+      <div>Juros acumulados: <strong id="interest">R$ 0,00</strong></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <button id="depositBtn" onclick="depositToday()">✓ FIZ O DEPÓSITO DE HOJE</button>
+    <button id="reminderBtn" onclick="requestReminder()">🔔 Ativar lembrete diário</button>
+    <div class="message" id="message"></div>
+    <div class="notice">Juros: 1% a cada 30 dias. Os depósitos e marcações ficam salvos neste aparelho.</div>
+  </div>
+
+  <div class="card">
+    <h2>📅 Histórico dos 3 anos</h2>
+    <div class="history" id="history"></div>
+  </div>
+</div>
+
+<script>
+const META = 100000;
+const DAILY = 75.75;
+const INTEREST = 0.01;
+const TOTAL_DAYS = 1095;
+const START = new Date(2026,8,2); // 02/09/2026
+const KEY = "meta100mil_depositos_v2";
+
+let state = JSON.parse(localStorage.getItem(KEY) || "{}");
+
+function money(v){
+  return v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+}
+function dateForDay(i){
+  const d = new Date(START);
+  d.setDate(d.getDate()+i);
+  return d;
+}
+function dateText(d){
+  return d.toLocaleDateString("pt-BR");
+}
+function save(){ localStorage.setItem(KEY, JSON.stringify(state)); }
+
+function calculate(){
+  let deposited=0, balance=0, count=0;
+  for(let i=0;i<TOTAL_DAYS;i++){
+    if(state[i]){
+      deposited += DAILY;
+      balance += DAILY;
+      count++;
+    }
+    // 1% is credited after each complete 30-day period.
+    if((i+1)%30===0) balance *= 1.01;
+  }
+  return {deposited,balance,count,interest:balance-deposited};
+}
+
+function render(){
+  const c=calculate();
+  document.getElementById("daily").textContent=money(DAILY);
+  document.getElementById("total").textContent=money(c.deposited);
+  document.getElementById("count").textContent=c.count;
+  document.getElementById("withInterest").textContent=money(c.balance);
+  document.getElementById("interest").textContent=money(c.interest);
+  const pct=Math.min(100,c.balance/META*100);
+  document.getElementById("percent").textContent=pct.toFixed(2).replace(".",",")+"%";
+  document.getElementById("bar").style.width=pct+"%";
+  document.getElementById("remaining").textContent=money(Math.max(0,META-c.balance));
+
+  const todayKey=dayIndexForDate(new Date());
+  const btn=document.getElementById("depositBtn");
+  if(todayKey>=0 && todayKey<TOTAL_DAYS && state[todayKey]){
+    btn.disabled=true;
+    btn.textContent="✓ DEPÓSITO DE HOJE JÁ REGISTRADO";
+  }else{
+    btn.disabled=false;
+    btn.textContent="✓ FIZ O DEPÓSITO DE HOJE";
+  }
+
+  const h=document.getElementById("history");
+  h.innerHTML="";
+  for(let i=0;i<TOTAL_DAYS;i++){
+    const row=document.createElement("div");
+    row.className="day";
+    const checked=!!state[i];
+    row.innerHTML=`
+      <input type="checkbox" ${checked?"checked":""} aria-label="Dia ${i+1}">
+      <div class="day-info">
+        <div class="day-title">Dia ${i+1}</div>
+        <div class="day-date">${dateText(dateForDay(i))}</div>
+      </div>
+      <div class="day-value">${money(DAILY)}</div>`;
+    row.querySelector("input").addEventListener("change",e=>{
+      if(e.target.checked) state[i]=true; else delete state[i];
+      save(); render();
+    });
+    h.appendChild(row);
+  }
+}
+
+function dayIndexForDate(date){
+  const d=new Date(date.getFullYear(),date.getMonth(),date.getDate());
+  const s=new Date(START.getFullYear(),START.getMonth(),START.getDate());
+  return Math.round((d-s)/86400000);
+}
+
+function depositToday(){
+  const i=dayIndexForDate(new Date());
+  if(i<0 || i>=TOTAL_DAYS){
+    showMessage("Hoje está fora do período da meta.");
+    return;
+  }
+  if(state[i]){
+    showMessage("O depósito de hoje já está registrado.");
+    return;
+  }
+  state[i]=true;
+  save();
+  render();
+  showMessage("✅ Depósito de hoje registrado!");
+}
+
+function showMessage(t){
+  const m=document.getElementById("message");
+  m.textContent=t;
+  setTimeout(()=>{m.textContent=""},3000);
+}
+
+async function requestReminder(){
+  if(!("Notification" in window)){
+    showMessage("Seu navegador não oferece notificações.");
+    return;
+  }
+  const permission=await Notification.requestPermission();
+  if(permission==="granted"){
+    showMessage("🔔 Notificações autorizadas neste navegador.");
+    try{ new Notification("Meta de R$ 100 mil",{body:"Hora de conferir o depósito de hoje!"}); }catch(e){}
+  }else{
+    showMessage("As notificações não foram autorizadas.");
+  }
+}
+
+render();
+
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+}
+</script>
+</body>
+</html>
