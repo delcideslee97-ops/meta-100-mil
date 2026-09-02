@@ -1,3 +1,4 @@
+
 self.addEventListener("install", () => {
   self.skipWaiting();
 });
@@ -16,8 +17,9 @@ self.addEventListener("push", (event) => {
   }
 
   const title = data.title || "Meta 100 mil";
+
   const options = {
-    body: data.body || "Não esqueça do seu depósito de hoje! 💰",
+    body: data.body || "Não esqueça do seu depósito de hoje!",
     icon: "./icon-192.png",
     badge: "./icon-192.png"
   };
@@ -31,6 +33,17 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
   event.waitUntil(
-    clients.openWindow("./")
+    self.clients.matchAll({ type: "window", includeUncontrolled: true })
+      .then((clients) => {
+        for (const client of clients) {
+          if ("focus" in client) {
+            return client.focus();
+          }
+        }
+
+        if (self.clients.openWindow) {
+          return self.clients.openWindow("./");
+        }
+      })
   );
 });
