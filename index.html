@@ -102,7 +102,7 @@ function save(){ localStorage.setItem(KEY, JSON.stringify(state)); }
 
 function calculate(){
   let deposited=0, balance=0, count=0;
-  for(let i=0;i<TOTAL_DAYS;i++){
+  for(let i=0;i<Math.min(TOTAL_DAYS,dayIndexForDate(new Date())+1);i++){
     if(state[i]){
       deposited += DAILY;
       balance += DAILY;
